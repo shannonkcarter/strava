@@ -12,12 +12,14 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Packages
 ```{r}
 # devtools::install_github("bldavies/stravadata")
+# devtools::install_github("marcusvolz/strava")
 library(stravadata)
 library(yaml)
 library(httr)
 library(jsonlite)
 library(tidyverse)
 library(highcharter)
+source("https://raw.githubusercontent.com/iascchen/VisHealth/master/R/calendarHeat.R")
 
 strava_hc <- hc_theme_merge(
   hc_theme_smpl(),
@@ -182,6 +184,16 @@ strava %>%
   hc_title(text = "What's a suffer score?")
 
 
+```
+```{r}
+tiles <- strava %>% 
+  filter(type == "Run") %>% 
+  mutate(date = as.Date(start_date))
+
+r2g <- c("#D61818", "#FFAE63", "#FFFFBD", "#B5E384")
+
+
+calendarHeat(tiles$date, tiles$distance, ncolors = 99, color = "r2g", varname="Running Miles")
 ```
 
 

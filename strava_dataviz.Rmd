@@ -1,0 +1,187 @@
+---
+title: "Strava API Practice"
+author: "Shannon Carter"
+date: "10/11/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Packages
+```{r}
+# devtools::install_github("bldavies/stravadata")
+library(stravadata)
+library(yaml)
+library(httr)
+library(jsonlite)
+library(tidyverse)
+library(highcharter)
+
+strava_hc <- hc_theme_merge(
+  hc_theme_smpl(),
+  hc_theme(colors = c("#ffffff", "#f26852", "#2a366c", "#3ead92", "#5f6fc1", "#f9cd21"), 
+           marker = list(fillColor = c("#ffffff", "#f26852", "#2a366c", "#3ead92", "#5f6fc1", "#f9cd21"), 
+                         lineColor = "#000", radius = 3, lineWidth = 1, symbol = "circle"), 
+           chart = list(backgroundColor = "#fc4c02", 
+                        style = list(fontFamily = "Montserrat", fontSize = "28px", 
+                                     color="#fff",fontWeight="500", textTransform="uppercase")),
+           title = list(style = list(fontFamily = "Montserrat", 
+                                     fontWeight = "bold",
+                                     color="white"),
+                        align = "left"), 
+           subtitle = list(style = list(fontFamily = "Montserrat", 
+                                        color="#fff",
+                                        textTransform="initial",
+                                        fontWeight="400",
+                                        fontSize = "14px"),
+                           align = "left"), 
+           legend = list(align = "right", 
+                         style = list(fontFamily = "Montserrat", color="white"),
+                         itemStyle = list(fontFamily = 'Montserrat', color = 'white'),
+                         itemHoverStyle = list(color = 'gray'),   
+                         verticalAlign = "top"),
+           credits = list(style = list(color = "#fff")),
+           caption = list(style = list(color = "fff", 
+                                       fontSize = "12px",
+                                       fontWeight = "500"),
+                          x = 15),
+           xAxis = list(labels =list(style = list(fontFamily = "Montserrat", color="#fff")), 
+                        title = list(style = list(color = "#fff", fontSize = "15px", 
+                                                  color="#fff",fontWeight="500")),
+                        gridLineWidth = 0.7,
+                        gridLineColor = 'rgba(243,243,243,0.15)', 
+                        lineColor = 'rgba(255,255,255,0.7)', 
+                        minorGridLineColor = 'rgba(243,243,243,0.7)', 
+                        tickColor = "#F3F3F3", 
+                        tickWidth = 2), 
+           yAxis = list(labels =list(style = list(fontFamily = "Montserrat", color="#fff")), 
+                        title = list(style = list(color = "#fff", fontSize = "15px", 
+                                                  color="#fff",fontWeight="500")), 
+                        gridLineWidth = .7,
+                        gridLineColor = 'rgba(243,243,243,0.15)', 
+                        lineColor = 'rgba(255,255,255,0.15)', 
+                        minorGridLineColor = 'rgba(243,243,243,0.15)', 
+                        tickColor = "#F3F3F3", 
+                        tickWidth = 2)))
+```
+
+
+## Setup and Authentication
+```{r}
+
+# https://bldavies.com/blog/accessing-strava-api/
+credentials <- read_yaml("credentials.yml")
+app <- oauth_app("strava", credentials$client_id, credentials$secret)
+endpoint <- oauth_endpoint(
+  request = NULL,
+  authorize = "https://www.strava.com/oauth/authorize",
+  access = "https://www.strava.com/oauth/token"
+)
+
+token <- oauth2.0_token(endpoint, app, as_header = FALSE,
+                        scope = "activity:read_all")
+
+```
+
+
+## Extract Data
+
+```{r cars}
+df_list <- list()
+i <- 1
+done <- FALSE
+while (!done) {
+  req <- GET(
+    url = "https://www.strava.com/api/v3/athlete/activities",
+    config = token,
+    query = list(per_page = 200, page = i)
+  )
+  df_list[[i]] <- fromJSON(content(req, as = "text"), flatten = TRUE)
+  if (length(content(req)) < 200) {
+    done <- TRUE
+  } else {
+    i <- i + 1
+  }
+}
+
+df <- rbind_pages(df_list)
+```
+
+## Clean Data
+```{r}
+strava <- df %>% 
+  select(name, distance, moving_time, elapsed_time, total_elevation_gain,
+         type, start_date, achievement_count, kudos_count, photo_count, average_heartrate, max_heartrate, total_photo_count, suffer_score, 
+         map.summary_polyline)
+```
+
+```{r}
+ggplot(strava, aes(x = type)) + 
+  geom_histogram(stat = "count")
+
+strava %>% 
+  filter(type %in% c("Ride", "Run", "Swim")) %>% 
+  ggplot(aes(x = type, y = kudos_count)) + 
+  geom_violin()
+
+strava %>% 
+  hchart("scatter", hcaes(x = total_photo_count, y = kudos_count)) %>% 
+  hc_tooltip(formatter = JS("function(){
+                                return (this.point.name + 
+                            ' <br> Sport: ' + this.point.type +
+                                      ' <br> Kudos Received: ' + this.y + 
+                                      ' <br> Number of photos uploaded: ' + this.x +
+                                      ' <br> Distance: ' + this.point.distance)}")) %>%
+  hc_xAxis(title = list(text = "Number of photos uploaded")) %>% 
+  hc_yAxis(title = list(text = "Kudos Received")) %>%
+  hc_add_theme(strava_hc) %>% 
+  hc_title(text = "picture perfect")
+
+
+strava %>% 
+  hchart("scatter", hcaes(x = suffer_score, y = kudos_count)) %>% 
+  hc_tooltip(formatter = JS("function(){
+                                return (this.point.name + 
+                            ' <br> Sport: ' + this.point.type +
+                                      ' <br> Kudos Received: ' + this.y + 
+                                      ' <br> Suffer Score: ' + this.x +
+                                      ' <br> Distance: ' + this.point.distance)}")) %>%
+  hc_xAxis(title = list(text = "Suffer Score")) %>% 
+  hc_yAxis(title = list(text = "Kudos Received")) %>%
+  hc_add_theme(strava_hc) %>% 
+  hc_title(text = "Does it pay to suffer?")
+
+strava %>% 
+  filter(type %in% c("Ride", "Run")) %>% 
+  hchart("scatter", hcaes(x = suffer_score, y = average_heartrate, color = type)) %>% 
+  hc_tooltip(formatter = JS("function(){
+                                return (this.point.name + 
+                            ' <br> Sport: ' + this.point.type +
+                                      ' <br> Average Heart Rate: ' + this.y + 
+                                      ' <br> Suffer Score: ' + this.x +
+                                      ' <br> Distance: ' + this.point.distance)}")) %>%
+  hc_xAxis(title = list(text = "Suffer Score")) %>% 
+  hc_yAxis(title = list(text = "Average Heart Rate")) %>%
+  hc_add_theme(strava_hc) %>% 
+  hc_title(text = "What's a suffer score?")
+
+strava %>% 
+  filter(type %in% c("Ride", "Run")) %>% 
+  hchart("scatter", hcaes(x = suffer_score, y = max_heartrate, color = type)) %>% 
+  hc_tooltip(formatter = JS("function(){
+                                return (this.point.name + 
+                            ' <br> Sport: ' + this.point.type +
+                                      ' <br> Max Heart Rate: ' + this.y + 
+                                      ' <br> Suffer Score: ' + this.x +
+                                      ' <br> Distance: ' + this.point.distance)}")) %>%
+  hc_xAxis(title = list(text = "Suffer Score")) %>% 
+  hc_yAxis(title = list(text = "Maximum Heart Rate")) %>%
+  hc_add_theme(strava_hc) %>% 
+  hc_title(text = "What's a suffer score?")
+
+
+```
+
+

@@ -90,7 +90,7 @@ token <- oauth2.0_token(endpoint, app, as_header = FALSE,
 
 ## Extract Data
 
-```{r cars}
+```{r}
 df_list <- list()
 i <- 1
 done <- FALSE
@@ -109,14 +109,22 @@ while (!done) {
 }
 
 df <- rbind_pages(df_list)
+write_rds(df, here::here("clean-data", "strava_2021_10_14.rds"))
 ```
 
 ## Clean Data
 ```{r}
+
+df <- read_rds(here::here("clean-data", "strava_2021_10_14.rds"))
+
 strava <- df %>% 
   select(name, distance, moving_time, elapsed_time, total_elevation_gain,
-         type, start_date, achievement_count, kudos_count, photo_count, average_heartrate, max_heartrate, total_photo_count, suffer_score, 
-         map.summary_polyline)
+         type, start_date, achievement_count, kudos_count, photo_count, 
+         average_heartrate, max_heartrate, total_photo_count, suffer_score, 
+         map.summary_polyline) %>% 
+  mutate(date = as.Date(start_date)) %>% 
+  mutate(distance_mi = distance/1609.34,
+         time_min = moving_time / 60)
 ```
 
 ```{r}
@@ -129,13 +137,19 @@ strava %>%
   geom_violin()
 
 strava %>% 
+  filter(type %in% c("Ride", "Run", "Swim")) %>% 
+  ggplot(aes(x = type, y = distance_mi)) + 
+  geom_boxplot() +
+  theme_bw()
+
+strava %>% 
   hchart("scatter", hcaes(x = total_photo_count, y = kudos_count)) %>% 
   hc_tooltip(formatter = JS("function(){
                                 return (this.point.name + 
                             ' <br> Sport: ' + this.point.type +
                                       ' <br> Kudos Received: ' + this.y + 
                                       ' <br> Number of photos uploaded: ' + this.x +
-                                      ' <br> Distance: ' + this.point.distance)}")) %>%
+                                      ' <br> Distance: ' + this.point.distance_mi)}")) %>%
   hc_xAxis(title = list(text = "Number of photos uploaded")) %>% 
   hc_yAxis(title = list(text = "Kudos Received")) %>%
   hc_add_theme(strava_hc) %>% 
@@ -149,7 +163,7 @@ strava %>%
                             ' <br> Sport: ' + this.point.type +
                                       ' <br> Kudos Received: ' + this.y + 
                                       ' <br> Suffer Score: ' + this.x +
-                                      ' <br> Distance: ' + this.point.distance)}")) %>%
+                                      ' <br> Distance: ' + this.point.distance_mi)}")) %>%
   hc_xAxis(title = list(text = "Suffer Score")) %>% 
   hc_yAxis(title = list(text = "Kudos Received")) %>%
   hc_add_theme(strava_hc) %>% 
@@ -163,7 +177,7 @@ strava %>%
                             ' <br> Sport: ' + this.point.type +
                                       ' <br> Average Heart Rate: ' + this.y + 
                                       ' <br> Suffer Score: ' + this.x +
-                                      ' <br> Distance: ' + this.point.distance)}")) %>%
+                                      ' <br> Distance: ' + this.point.distance_mi)}")) %>%
   hc_xAxis(title = list(text = "Suffer Score")) %>% 
   hc_yAxis(title = list(text = "Average Heart Rate")) %>%
   hc_add_theme(strava_hc) %>% 
@@ -177,23 +191,75 @@ strava %>%
                             ' <br> Sport: ' + this.point.type +
                                       ' <br> Max Heart Rate: ' + this.y + 
                                       ' <br> Suffer Score: ' + this.x +
-                                      ' <br> Distance: ' + this.point.distance)}")) %>%
+                                      ' <br> Distance: ' + this.point.distance_mi)}")) %>%
   hc_xAxis(title = list(text = "Suffer Score")) %>% 
   hc_yAxis(title = list(text = "Maximum Heart Rate")) %>%
   hc_add_theme(strava_hc) %>% 
   hc_title(text = "What's a suffer score?")
 
+strava %>% 
+  filter(type %in% c("Ride", "Run")) %>% 
+  hchart("scatter", hcaes(x = distance_mi, y = average_heartrate, color = type)) %>% 
+  hc_tooltip(formatter = JS("function(){
+                                return (this.point.name + 
+                            ' <br> Sport: ' + this.point.type +
+                                      ' <br> Max Heart Rate: ' + this.y + 
+                                      ' <br> Suffer Score: ' + this.x +
+                                      ' <br> Distance: ' + this.point.distance_mi)}")) %>%
+  hc_xAxis(title = list(text = "Distance (mi)")) %>% 
+  hc_yAxis(title = list(text = "Maximum Heart Rate")) %>%
+  hc_add_theme(strava_hc) %>% 
+  hc_title(text = "")
+
+strava %>% 
+  filter(type %in% c("Ride", "Run")) %>% 
+  hchart("scatter", hcaes(x = max_heartrate, y = average_heartrate, color = type)) %>% 
+  hc_tooltip(formatter = JS("function(){
+                                return (this.point.name + 
+                            ' <br> Sport: ' + this.point.type +
+                                      ' <br> Max Heart Rate: ' + this.y + 
+                                      ' <br> Suffer Score: ' + this.x +
+                                      ' <br> Distance: ' + this.point.distance_mi)}")) %>%
+  hc_xAxis(title = list(text = "Maximum Heart Rate")) %>% 
+  hc_yAxis(title = list(text = "Average Heart Rate")) %>%
+  hc_add_theme(strava_hc) %>% 
+  hc_title(text = "")
+
 
 ```
 ```{r}
 tiles <- strava %>% 
-  filter(type == "Run") %>% 
-  mutate(date = as.Date(start_date))
+  filter(type == "Run" | type == "Ride") %>% 
+  
+  filter(date > "2017-12-31")
 
 r2g <- c("#D61818", "#FFAE63", "#FFFFBD", "#B5E384")
 
 
-calendarHeat(tiles$date, tiles$distance, ncolors = 99, color = "r2g", varname="Running Miles")
+calendarHeat(tiles$date, tiles$distance_mi, ncolors = 99, color = "r2g", varname="Running Miles")
+```
+```{r}
+pace <- strava %>% 
+  filter(type == "Run") %>% 
+  mutate(min_per_mile = time_min / distance_mi)
+
+ggplot(pace, aes(x = date, y = min_per_mile)) + 
+  geom_point() + 
+  ylim(6, 15) +
+  theme_bw() +
+  geom_smooth()
+
+ggplot(pace, aes(x = date, y = max_heartrate)) + 
+  geom_point() + 
+  #ylim(6, 15) +
+  theme_bw() +
+  geom_smooth()
 ```
 
+```{r cars}
 
+# https://www.markhneedham.com/blog/2017/04/29/leaflet-strava-polylines-osm/
+# extracting routes form polyline
+mini <- strava %>% 
+  head(10)
+```

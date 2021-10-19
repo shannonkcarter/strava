@@ -2,12 +2,19 @@
 title: "Strava API Practice"
 author: "Shannon Carter"
 date: "10/11/2021"
-output: html_document
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    theme: united
+    highlight: tango 
 ---
 
 ## Packages
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
 
 # devtools::install_github("bldavies/stravadata")
 # devtools::install_github("marcusvolz/strava")
@@ -24,7 +31,7 @@ source("https://raw.githubusercontent.com/iascchen/VisHealth/master/R/calendarHe
 ```{r }
 strava_hc <- hc_theme_merge(
   hc_theme_smpl(),
-  hc_theme(colors = c("#ffffff", "#D3D3D3"),
+  hc_theme(colors = c("#ffffff", "#C6C6C6"),
     marker = list(fillColor = c("#ffffff", "#f26852", "#2a366c", "#3ead92", "#5f6fc1", "#f9cd21"), 
                          lineColor = "#000", radius = 3, lineWidth = 1, symbol = "circle"), 
            chart = list(backgroundColor = "#fc4c02", 
@@ -130,7 +137,7 @@ strava_gg <- function (base_size = 14,
 
 
 ## Setup and Authentication
-```{r}
+```{r, eval = F}
 # https://bldavies.com/blog/accessing-strava-api/
 credentials <- read_yaml("credentials.yml")
 app <- oauth_app("strava", credentials$client_id, credentials$secret)
@@ -147,7 +154,7 @@ token <- oauth2.0_token(endpoint, app, as_header = FALSE,
 
 
 ## Extract Data
-```{r}
+```{r, eval = F}
 df_list <- list()
 i <- 1
 done <- FALSE
@@ -209,7 +216,7 @@ strava %>%
 strava %>% 
   filter(type %in% c("Ride", "Run", "Swim")) %>% 
   ggplot(aes(x = type, y = distance_mi)) + 
-  geom_boxplot(outlier.color = "#ffffff", color = "white", fill = "gray") +
+  geom_boxplot(outlier.color = "#ffffff", color = "white", fill = "#d3d3d3") +
   strava_gg() +
   labs(x = NULL, y = "distance (mi)")
 ```
@@ -249,7 +256,7 @@ strava %>%
 ```{r}
 strava %>% 
   filter(type %in% c("Ride", "Run")) %>% 
-  hchart("scatter", hcaes(x = suffer_score, y = average_heartrate, color = type, size = distance)) %>% 
+  hchart("scatter", hcaes(x = suffer_score, y = average_heartrate, group = type, size = distance)) %>% 
   hc_tooltip(formatter = JS("function(){
                                 return (this.point.name + 
                             ' <br> Sport: ' + this.point.type +
@@ -259,13 +266,12 @@ strava %>%
   hc_xAxis(title = list(text = "Suffer Score")) %>% 
   hc_yAxis(title = list(text = "Average Heart Rate")) %>%
   hc_add_theme(strava_hc) %>% 
-  #hc_colors(colors = c("#ffffff", "#D3D3D3")) %>% 
   hc_title(text = "What's a suffer score?")
 ```
 ```{r}
 strava %>% 
   filter(type %in% c("Ride", "Run")) %>% 
-  hchart("scatter", hcaes(x = suffer_score, y = max_heartrate, color = type, size =)) %>% 
+  hchart("scatter", hcaes(x = suffer_score, y = max_heartrate, group = type)) %>% 
   hc_tooltip(formatter = JS("function(){
                                 return (this.point.name + 
                             ' <br> Sport: ' + this.point.type +
@@ -299,7 +305,7 @@ strava %>%
 
 strava %>% 
   filter(type %in% c("Ride", "Run")) %>% 
-  hchart("scatter", hcaes(x = max_heartrate, y = average_heartrate, color = type, size = distance)) %>% 
+  hchart("scatter", hcaes(x = max_heartrate, y = average_heartrate, group = type, size = distance)) %>% 
   hc_tooltip(formatter = JS("function(){
                                 return (this.point.name + 
                             ' <br> Sport: ' + this.point.type +
@@ -341,11 +347,6 @@ r2g <- c("#D61818", "#FFAE63", "#FFFFBD", "#B5E384")
 
 calendarHeat(tiles$date, tiles$distance_mi, ncolors = 99, color = "r2g", varname="Cycling Miles")
 ```
-```{r}
-
-```
-
-
 
 ```{r}
 pace <- strava %>% 
@@ -353,10 +354,10 @@ pace <- strava %>%
   mutate(min_per_mile = time_min / distance_mi)
 
 ggplot(pace, aes(x = date, y = min_per_mile, size = distance)) + 
-  geom_point(color = "white", alpha = 0.5) + 
+  geom_point(color = "#c6c6c6", alpha = 0.5) + 
   ylim(6, 15) +
   strava_gg() +
-  geom_smooth(color = "gray") + 
+  geom_smooth(color = "#ffffff", fill = "#ffffff") + 
   labs(x = NULL, y = "pace (minutes/mile)")
 
 pace %>% 
@@ -374,9 +375,9 @@ pace %>%
 ```
 ```{r}
 ggplot(pace, aes(x = date, y = average_heartrate, size = distance)) + 
-  geom_point(color = "#ffffff", alpha = 0.5) + 
+  geom_point(color = "#c6c6c6", alpha = 0.5) + 
   strava_gg() +
-  geom_smooth(color = "#ffffff") +
+  geom_smooth(color = "#ffffff", fill = "#ffffff") +
   labs(x = NULL, y = "average heartrate")
 ```
 

@@ -24,6 +24,8 @@ library(httr)
 library(jsonlite)
 library(tidyverse)
 library(highcharter)
+library(lubridate)
+library(janitor)
 source("https://raw.githubusercontent.com/iascchen/VisHealth/master/R/calendarHeat.R")
 ```
 
@@ -268,6 +270,7 @@ strava %>%
   hc_add_theme(strava_hc) %>% 
   hc_title(text = "What's a suffer score?")
 ```
+
 ```{r}
 strava %>% 
   filter(type %in% c("Ride", "Run")) %>% 
@@ -284,6 +287,7 @@ strava %>%
   hc_title(text = "What's a suffer score?")
 
 ```
+
 ```{r}
 strava %>% 
   filter(type == "Run") %>% 
@@ -318,6 +322,7 @@ strava %>%
   hc_title(text = "")
 
 ```
+
 ```{r}
 tiles <- strava %>% 
   filter(type == "Run" | type == "Ride") %>% 
@@ -373,6 +378,7 @@ pace %>%
   hc_add_theme(strava_hc) %>% 
   hc_title(text = "")
 ```
+
 ```{r}
 ggplot(pace, aes(x = date, y = average_heartrate, size = distance)) + 
   geom_point(color = "#c6c6c6", alpha = 0.5) + 
@@ -381,6 +387,46 @@ ggplot(pace, aes(x = date, y = average_heartrate, size = distance)) +
   labs(x = NULL, y = "average heartrate")
 ```
 
+## Temporal Aggregations
+
+```{r}
+library(lubridate)
+
+weeks <- strava %>% 
+  mutate(date = as.Date(start_date),
+         week = floor_date(date, "week")) %>% 
+  group_by(week, type) %>% 
+  summarize(miles = sum(distance_mi))
+
+running <- weeks %>% 
+  filter(type == "Run") %>% 
+  ggplot(aes(x = week, y = miles)) + 
+  geom_bar(stat = "identity") +
+  strava_gg()
+running
+
+years <- strava %>% 
+  mutate(date = as.Date(start_date),
+         year = year(date)) %>% 
+  group_by(year, type) %>% 
+  summarize(miles = sum(distance_mi))
+
+years_plot <- years %>% 
+  filter(type == "Ride") %>% 
+  ggplot(aes(x = year, y = miles, fill = type)) + 
+  geom_bar(stat = "identity", position = "dodge") +
+  strava_gg()
+years_plot
+
+running <- weeks %>% 
+  filter(type == "Run") %>% 
+  ggplot(aes(x = week, y = miles)) + 
+  geom_bar(stat = "identity") +
+  strava_gg()
+running
+```
+
+## Routes
 
 ```{r routes}
 

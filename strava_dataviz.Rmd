@@ -184,13 +184,16 @@ df <- read_rds(here::here("clean-data", "strava_2021_10_14.rds"))
 
 strava <- df %>% 
   select(name, distance, moving_time, elapsed_time, total_elevation_gain,
-         type, start_date, achievement_count, kudos_count, photo_count, 
+         type, workout_type, start_date, 
+         achievement_count, kudos_count, photo_count, 
          average_heartrate, max_heartrate, total_photo_count, suffer_score, 
          map.summary_polyline) %>% 
   mutate(date = as.Date(start_date)) %>% 
   # convert distance from m to mi, time from seconds to minutes
-  mutate(distance_mi = round(distance/1609.34, 1),
-         time_min = moving_time / 60)
+  mutate(distance = round(distance/1609.34, 1),
+         moving_time = moving_time / 60) %>% 
+  mutate(half_marathon = case_when(workout_type == 1 & distance > 12 & distance < 15 ~ "y",
+                                   T ~ "n"))
 ```
 
 ## Plots
@@ -217,7 +220,7 @@ strava %>%
 ```{r}
 strava %>% 
   filter(type %in% c("Ride", "Run", "Swim")) %>% 
-  ggplot(aes(x = type, y = distance_mi)) + 
+  ggplot(aes(x = type, y = distance)) + 
   geom_boxplot(outlier.color = "#ffffff", color = "white", fill = "#d3d3d3") +
   strava_gg() +
   labs(x = NULL, y = "distance (mi)")
@@ -231,7 +234,7 @@ strava %>%
                             ' <br> Sport: ' + this.point.type +
                                       ' <br> Kudos Received: ' + this.y + 
                                       ' <br> Number of photos uploaded: ' + this.x +
-                                      ' <br> Distance: ' + this.point.distance_mi)}")) %>%
+                                      ' <br> Distance: ' + this.point.distance)}")) %>%
   hc_xAxis(title = list(text = "Number of photos uploaded")) %>% 
   hc_yAxis(title = list(text = "Kudos Received")) %>%
   hc_add_theme(strava_hc) %>% 
@@ -247,7 +250,7 @@ strava %>%
                             ' <br> Sport: ' + this.point.type +
                                       ' <br> Kudos Received: ' + this.y + 
                                       ' <br> Suffer Score: ' + this.x +
-                                      ' <br> Distance: ' + this.point.distance_mi)}")) %>%
+                                      ' <br> Distance: ' + this.point.distance)}")) %>%
   hc_xAxis(title = list(text = "Suffer Score")) %>% 
   hc_yAxis(title = list(text = "Kudos Received")) %>%
   hc_add_theme(strava_hc) %>% 
@@ -264,7 +267,7 @@ strava %>%
                             ' <br> Sport: ' + this.point.type +
                                       ' <br> Average Heart Rate: ' + this.y + 
                                       ' <br> Suffer Score: ' + this.x +
-                                      ' <br> Distance: ' + this.point.distance_mi)}")) %>%
+                                      ' <br> Distance: ' + this.point.distance)}")) %>%
   hc_xAxis(title = list(text = "Suffer Score")) %>% 
   hc_yAxis(title = list(text = "Average Heart Rate")) %>%
   hc_add_theme(strava_hc) %>% 
@@ -280,7 +283,7 @@ strava %>%
                             ' <br> Sport: ' + this.point.type +
                                       ' <br> Max Heart Rate: ' + this.y + 
                                       ' <br> Suffer Score: ' + this.x +
-                                      ' <br> Distance: ' + this.point.distance_mi)}")) %>%
+                                      ' <br> Distance: ' + this.point.distance)}")) %>%
   hc_xAxis(title = list(text = "Suffer Score")) %>% 
   hc_yAxis(title = list(text = "Maximum Heart Rate")) %>%
   hc_add_theme(strava_hc) %>% 
@@ -291,13 +294,13 @@ strava %>%
 ```{r}
 strava %>% 
   filter(type == "Run") %>% 
-  hchart("scatter", hcaes(x = distance_mi, y = average_heartrate)) %>% 
+  hchart("scatter", hcaes(x = distance, y = average_heartrate)) %>% 
   hc_tooltip(formatter = JS("function(){
                                 return (this.point.name + 
                             ' <br> Sport: ' + this.point.type +
                                       ' <br> Max Heart Rate: ' + this.y + 
                                       ' <br> Suffer Score: ' + this.x +
-                                      ' <br> Distance: ' + this.point.distance_mi)}")) %>%
+                                      ' <br> Distance: ' + this.point.distance)}")) %>%
   hc_xAxis(title = list(text = "Distance (mi)")) %>% 
   hc_yAxis(title = list(text = "Maximum Heart Rate")) %>%
   hc_add_theme(strava_hc) %>% 
@@ -315,7 +318,7 @@ strava %>%
                             ' <br> Sport: ' + this.point.type +
                                       ' <br> Max Heart Rate: ' + this.y + 
                                       ' <br> Suffer Score: ' + this.x +
-                                      ' <br> Distance: ' + this.point.distance_mi)}")) %>%
+                                      ' <br> Distance: ' + this.point.distance)}")) %>%
   hc_xAxis(title = list(text = "Maximum Heart Rate")) %>% 
   hc_yAxis(title = list(text = "Average Heart Rate")) %>%
   hc_add_theme(strava_hc) %>% 
@@ -330,7 +333,7 @@ tiles <- strava %>%
 
 r2g <- c("#D61818", "#FFAE63", "#FFFFBD", "#B5E384")
 
-calendarHeat(tiles$date, tiles$distance_mi, ncolors = 99, color = "r2g", varname="Running & Cycling Miles")
+calendarHeat(tiles$date, tiles$distance, ncolors = 99, color = "r2g", varname="Running & Cycling Miles")
 ```
 
 ```{r}
@@ -340,7 +343,7 @@ tiles <- strava %>%
 
 r2g <- c("#D61818", "#FFAE63", "#FFFFBD", "#B5E384")
 
-calendarHeat(tiles$date, tiles$distance_mi, ncolors = 99, color = "r2g", varname="Running Miles")
+calendarHeat(tiles$date, tiles$distance, ncolors = 99, color = "r2g", varname="Running Miles")
 ```
 
 ```{r}
@@ -350,13 +353,13 @@ tiles <- strava %>%
 
 r2g <- c("#D61818", "#FFAE63", "#FFFFBD", "#B5E384")
 
-calendarHeat(tiles$date, tiles$distance_mi, ncolors = 99, color = "r2g", varname="Cycling Miles")
+calendarHeat(tiles$date, tiles$distance, ncolors = 99, color = "r2g", varname="Cycling Miles")
 ```
 
 ```{r}
 pace <- strava %>% 
   filter(type == "Run") %>% 
-  mutate(min_per_mile = time_min / distance_mi)
+  mutate(min_per_mile = moving_time / distance)
 
 ggplot(pace, aes(x = date, y = min_per_mile, size = distance)) + 
   geom_point(color = "#c6c6c6", alpha = 0.5) + 
@@ -372,7 +375,7 @@ pace %>%
                             ' <br> Sport: ' + this.point.type +
                                       ' <br> Max Heart Rate: ' + this.y + 
                                       ' <br> Suffer Score: ' + this.x +
-                                      ' <br> Distance: ' + this.point.distance_mi)}")) %>%
+                                      ' <br> Distance: ' + this.point.distance)}")) %>%
   hc_xAxis(title = list(text = "")) %>% 
   hc_yAxis(title = list(text = "pace (minutes/mile)")) %>%
   hc_add_theme(strava_hc) %>% 
@@ -396,7 +399,7 @@ weeks <- strava %>%
   mutate(date = as.Date(start_date),
          week = floor_date(date, "week")) %>% 
   group_by(week, type) %>% 
-  summarize(miles = sum(distance_mi))
+  summarize(miles = sum(distance))
 
 running <- weeks %>% 
   filter(type == "Run") %>% 
@@ -409,7 +412,7 @@ years <- strava %>%
   mutate(date = as.Date(start_date),
          year = year(date)) %>% 
   group_by(year, type) %>% 
-  summarize(miles = sum(distance_mi))
+  summarize(miles = sum(distance))
 
 years_plot <- years %>% 
   filter(type == "Ride") %>% 
@@ -434,4 +437,39 @@ running
 # extracting routes form polyline
 mini <- strava %>% 
   head(10)
+```
+
+## Race Training Loads
+```{r}
+half_training <- strava %>% 
+  filter(half_marathon == "y") %>% 
+  mutate(training_start = date - 90) %>% 
+  mutate(race_name = c("Aramco 2020 (virtual)", "Aramco 2019", "Koala 2019", "Oilman 2018", "Austin 2017", "Aramco 2017")) %>% 
+  #filter(race_name != "Austin 2017") %>% 
+  select(race_name, finish_time = moving_time, training_start, race_day = date) 
+
+austin <- half_training %>%
+  filter(race_name == "Austin 2017") %>% 
+  mutate(training_mileage = 244.4) %>% 
+  select(training_for = race_name, training_mileage, finish_time, training_start, race_day)
+training_periods <- strava %>% 
+  mutate(training_for = case_when(
+    date > "2017-10-16" & date <= "2018-01-14" ~ "Aramco 2017",
+    #date > "2017-11-20" & date <= "2018-02-18" ~ "Austin 2017",
+    date > "2018-08-06" & date <= "2018-11-04" ~ "Oilman 2018",
+    date > "2019-07-29" & date <= "2019-10-27" ~ "Koala 2019",
+    date > "2019-10-21" & date <= "2020-01-19" ~ "Aramco 2019",
+    date > "2020-10-11" & date <= "2021-01-09" ~ "Aramco 2020 (virtual)",
+    date > "2021-07-27" & date <= "2021-10-31" ~ "Koala 2021"
+    )) %>% 
+  filter(type == "Run") %>% 
+  group_by(training_for) %>% 
+  summarize(training_mileage = sum(distance)) %>% 
+  ungroup() %>% 
+  filter(!is.na(training_for)) %>% 
+  left_join(half_training, by = c("training_for" = "race_name")) %>% 
+  rbind(austin)
+  
+
+ggplot(training_periods, aes(x = training_mileage, y = finish_time)) + geom_point(color = "white", size = 2) +  strava_gg()
 ```

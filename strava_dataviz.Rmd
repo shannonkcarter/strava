@@ -417,9 +417,16 @@ years <- strava %>%
 years_plot <- years %>% 
   filter(type == "Ride") %>% 
   ggplot(aes(x = year, y = miles, fill = type)) + 
-  geom_bar(stat = "identity", position = "dodge") +
+  geom_bar(stat = "identity", position = "dodge", fill = "white") +
   strava_gg()
 years_plot
+
+years_run <- years %>% 
+  filter(type == "Run") %>% 
+  ggplot(aes(x = year, y = miles, fill = type)) + 
+  geom_bar(stat = "identity", position = "dodge", fill = "white") +
+  strava_gg()
+years_run
 
 running <- weeks %>% 
   filter(type == "Run") %>% 
@@ -427,6 +434,44 @@ running <- weeks %>%
   geom_bar(stat = "identity") +
   strava_gg()
 running
+```
+
+```{r}
+cumulative_miles <- strava %>% 
+  filter(type == "Run") %>% 
+  mutate(year = as.factor(year(date)),
+         doy = yday(date)) %>% 
+  select(year, doy, distance, name) %>% 
+  arrange(year, doy) %>% 
+  group_by(year) %>% 
+  mutate(cumulative_miles = cumsum(distance)) %>% 
+  ggplot(aes(x = doy, y = cumulative_miles, color = year)) + 
+  geom_point() +
+  geom_line() +
+  strava_gg()
+cumulative_miles
+
+cumulative_miles <- strava %>% 
+  filter(type == "Run") %>% 
+
+  mutate(year = as.factor(year(date)),
+         doy = yday(date)) %>% 
+    filter(year != "2017") %>% 
+  select(year, doy, distance, name) %>% 
+  arrange(year, doy) %>% 
+  group_by(year) %>% 
+  mutate(cumulative_miles = cumsum(distance)) %>% 
+  hchart("line", hcaes(x = doy, y = cumulative_miles, group = year), size = 2) %>% 
+  hc_tooltip(formatter = JS("function(){
+                                return (this.point.name + 
+                                      ' <br> Activity distance: ' + this.point.distance +
+                            '<br> Year-to-date distance: ' + this.point.cumulative_miles)}")) %>%
+  hc_xAxis(title = list(text = "day of year")) %>% 
+  hc_yAxis(title = list(text = "year-to-date miles")) %>%
+  hc_add_theme(strava_hc) %>% 
+  hc_title(text = "") %>% 
+  hc_colors(c("white", "gray", "black", "blue"))
+cumulative_miles
 ```
 
 ## Routes
@@ -444,7 +489,7 @@ mini <- strava %>%
 half_training <- strava %>% 
   filter(half_marathon == "y") %>% 
   mutate(training_start = date - 90) %>% 
-  mutate(race_name = c("Aramco 2020 (virtual)", "Aramco 2019", "Koala 2019", "Oilman 2018", "Austin 2017", "Aramco 2017")) %>% 
+  mutate(race_name = c("Koala 2021", "Aramco 2020 (virtual)", "Aramco 2019", "Koala 2019", "Oilman 2018", "Austin 2017", "Aramco 2017")) %>% 
   #filter(race_name != "Austin 2017") %>% 
   select(race_name, finish_time = moving_time, training_start, race_day = date) 
 
@@ -468,8 +513,18 @@ training_periods <- strava %>%
   ungroup() %>% 
   filter(!is.na(training_for)) %>% 
   left_join(half_training, by = c("training_for" = "race_name")) %>% 
-  rbind(austin)
+  rbind(austin) %>% 
+  mutate(finish_time_hr = paste0("2:", str_pad(round(finish_time - 120), 2, pad = "0")))
   
 
 ggplot(training_periods, aes(x = training_mileage, y = finish_time)) + geom_point(color = "white", size = 2) +  strava_gg()
+hchart(training_periods, "scatter", hcaes(x = training_mileage, y = finish_time)) %>% 
+  hc_tooltip(formatter = JS("function(){
+                                return (this.point.training_for + 
+                                      ' <br> Finish time: ' + this.point.finish_time_hr +
+                            '<br> Training mileage: ' + this.point.training_mileage)}")) %>%
+  hc_xAxis(title = list(text = "miles run in the 3 months preceeding the race")) %>% 
+  hc_yAxis(title = list(text = "half marathon finish time (minutes)")) %>%
+  hc_add_theme(strava_hc) %>% 
+  hc_title(text = "") 
 ```

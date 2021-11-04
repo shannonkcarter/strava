@@ -122,7 +122,7 @@ strava_gg <- function (base_size = 14,
     ) +
     ggplot2::theme(
       plot.background = element_rect(fill = "#fc4c02"),
-      axis.line.x = ggplot2::element_line(color = "#ffffff", size = 0.8),
+      axis.line.x = ggplot2::element_line(color = "#ffffff", size = 0),
       panel.background = element_rect(fill = "#fc4c02", color = "transparent"), # bg of the panel
       panel.grid.major.y = ggplot2::element_line(color = "#ffffff", size = 0.2),
       panel.grid.minor.y = ggplot2::element_blank(),
@@ -469,8 +469,8 @@ cumulative_miles <- strava %>%
   hc_xAxis(title = list(text = "day of year")) %>% 
   hc_yAxis(title = list(text = "year-to-date miles")) %>%
   hc_add_theme(strava_hc) %>% 
-  hc_title(text = "") %>% 
-  hc_colors(c("white", "gray", "black", "blue"))
+  hc_title(text = "") #%>% 
+  #hc_colors(c("white", "gray", "black", "blue"))
 cumulative_miles
 ```
 
@@ -516,8 +516,6 @@ training_periods <- strava %>%
   rbind(austin) %>% 
   mutate(finish_time_hr = paste0("2:", str_pad(round(finish_time - 120), 2, pad = "0")))
   
-
-ggplot(training_periods, aes(x = training_mileage, y = finish_time)) + geom_point(color = "white", size = 2) +  strava_gg()
 hchart(training_periods, "scatter", hcaes(x = training_mileage, y = finish_time)) %>% 
   hc_tooltip(formatter = JS("function(){
                                 return (this.point.training_for + 
@@ -528,3 +526,50 @@ hchart(training_periods, "scatter", hcaes(x = training_mileage, y = finish_time)
   hc_add_theme(strava_hc) %>% 
   hc_title(text = "") 
 ```
+
+
+```{r}
+library(ggridges)
+ridge <- strava %>% 
+  filter(type == "Run") %>% 
+  mutate(month = as.factor(month(date, label = T, abbr = T)), 
+         year = as.factor(year(date))) %>% 
+  group_by(year, month) %>% 
+  mutate(monthly_miles = sum(distance)) %>% 
+  select(month, year, monthly_miles) %>% 
+  distinct()
+
+ggplot(ridge, aes(x = monthly_miles, y = month, fill = stat(x))) +
+  geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
+  scale_fill_viridis_c(name = "suffer score", option = "C") +
+  labs(x = "MILES", y = "") +
+  strava_gg()
+ggsave(filename =  here::here("figures", "monthly_ridgeline.jpeg"),
+       width = 8, height = 6, units = "in")
+```
+```{r}
+ridge %>% 
+  ggplot(aes(x = month, y = monthly_miles, fill = year)) + 
+  geom_bar(stat = "identity", position = "dodge") + 
+  theme_bw()
+
+ridge %>% 
+  ggplot(aes(x = month, y = monthly_miles, color = year, group = year)) + 
+  geom_point() + 
+  geom_line() +
+  theme_bw()
+
+box <- ridge %>% 
+  ggplot(aes(x = month, y = monthly_miles)) + 
+  geom_boxplot(alpha = 0.7) + 
+  strava_gg() +
+  theme(legend.position = "top") +
+  geom_point(aes(x = month, y = monthly_miles, fill = year), shape = 21, color = "white", size = 3) +
+  labs(x = "", y = "MILES", fill = "") +
+  scale_fill_manual(values = c("tomato", "yellow", "aquamarine4", "dodgerblue" ,  "purple")) +
+  scale_y_continuous(breaks = seq(0, 150, 25))
+ggsave(plot = box, filename =  here::here("figures", "monthly_boxplot.jpeg"),
+       width = 8, height = 6, units = "in")
+
+```
+

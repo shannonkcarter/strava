@@ -594,6 +594,7 @@ leaflet() %>%
 ```
 
 ```{r}
+# https://www.r-bloggers.com/2018/05/get-your-tracks-from-the-strava-api-and-plot-them-on-leaflet-maps/
 options(stringsAsFactors = F)
 
 rm(list=ls())

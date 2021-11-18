@@ -544,6 +544,7 @@ ggplot(ridge, aes(x = monthly_miles, y = month, fill = stat(x))) +
   scale_fill_gradient(low = "yellow", high = "red") + 
   #scale_fill_viridis_c(option = "C") +
   labs(x = "MILES", y = "") +
+  scale_y_discrete(limits = rev) +
   strava_gg()
 ggsave(filename =  here::here("figures", "monthly_ridgeline.jpeg"),
        width = 8, height = 6, units = "in")
@@ -551,18 +552,18 @@ ggsave(filename =  here::here("figures", "monthly_ridgeline.jpeg"),
 ridge_ss <- strava %>% 
   filter(type == "Run") %>% 
   mutate(month = as.factor(month(date, label = T, abbr = T)), 
-         year = as.factor(year(date)),
-         max_hr_over_distance = max_heartrate / distance) #%>% 
+         year = as.factor(year(date))) %>% 
   group_by(year, month) %>% 
-  mutate(suffer_score = mean(suffer_score, na.rm = T)) %>% 
-  select(month, year, suffer_score) %>% 
+  mutate(max_heartrate = mean(max_heartrate, na.rm = T)) %>% 
+  select(month, year, max_heartrate) %>% 
   distinct()
 
-ggplot(ridge_ss, aes(x = suffer_score, y = month, fill = stat(x))) +
+ggplot(ridge_ss, aes(x = max_heartrate, y = month, fill = stat(x))) +
   geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
   scale_fill_gradient(low = "yellow", high = "red") + 
   #scale_fill_viridis_c(option = "C") +
-  labs(x = "MILES", y = "") +
+  labs(x = "MAX HEART RATE", y = "") +
+  scale_y_discrete(limits = rev) +
   strava_gg()
 ggsave(filename =  here::here("figures", "monthly_ridgeline.jpeg"),
        width = 8, height = 6, units = "in")
@@ -755,4 +756,58 @@ ggplot(df, aes(monthweek, weekdayf, fill = VIX.Close)) +
        subtitle="Yahoo Closing Price", 
        fill="Close")
 ```
+
+# circular bar chart
+```{r}
+# https://www.r-graph-gallery.com/299-circular-stacked-barplot.html
+ 
+weeks_run <- weeks %>% 
+  filter(type == "Run") %>% 
+  mutate(year = year(week),
+         week_number = week(week),
+         month = month(week),
+         season = case_when(month %in% c(12, 1, 2) ~ "winter",
+                            month %in% c(3, 4, 5) ~ "spring",
+                            month %in% c(6, 7, 8) ~ "summer",
+                            month %in% c(9, 10, 11) ~ "fall")) %>% 
+    filter(year > 2017) %>% 
+  group_by(week_number, year) %>% 
+  summarize(weekly_miles = sum(miles, na.rm = T),
+            season = season[1])
+
+# prepare a data frame for base lines
+base_data <- tibble(
+  season = c("winter", "spring", "summer", "fall", ""),
+  start = c(1, 9, 23, 36, 49),
+  end = c(8, 22, 35, 48, 52),
+  title = c(3, 15.5, 29, 42, 2)
+)
+library(forcats)
+pinwheel <- ggplot(weeks_run, aes(x = week_number, y = weekly_miles, fill = forcats::fct_rev(as.factor(year)))) + 
+  geom_bar(position = "stack", stat = "identity", color = "white", size = 0.5) +
+
+  coord_polar() +
+  theme(legend.position = "none") +
+  ylim(-20,100) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),
+    plot.margin = unit(rep(-1,4), "cm") 
+  ) +
+  scale_fill_manual(values = c("dodgerblue", "aquamarine4", "yellow", "tomato")) #+
+  # Add base line information
+  geom_segment(data = base_data, 
+               aes(x = start, y = -3, xend = end, yend = -3), colour = "black", size = 0.6, inherit.aes = F) +
+  geom_text(data = base_data, 
+            aes(x = title, y = -8, label = season), 
+            hjust = c(1, 1, 0, 0, 0), colour = "black", size = 3, inherit.aes = F)
+pinwheel
+ggsave(pinwheel, file = here::here("figures", "pinwheel.jpg"), width = 10, height = 10)
+ 
+```
+
+
 

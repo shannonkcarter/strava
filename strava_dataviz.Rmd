@@ -469,8 +469,8 @@ cumulative_miles <- strava %>%
   hc_xAxis(title = list(text = "day of year")) %>% 
   hc_yAxis(title = list(text = "year-to-date miles")) %>%
   hc_add_theme(strava_hc) %>% 
-  hc_title(text = "") #%>% 
-  #hc_colors(c("white", "gray", "black", "blue"))
+  hc_title(text = "")  %>% 
+  hc_colors(c("yellow", "#358856", "dodgerblue", "purple"))
 cumulative_miles
 ```
 
@@ -547,6 +547,25 @@ ggplot(ridge, aes(x = monthly_miles, y = month, fill = stat(x))) +
   strava_gg()
 ggsave(filename =  here::here("figures", "monthly_ridgeline.jpeg"),
        width = 8, height = 6, units = "in")
+
+ridge_ss <- strava %>% 
+  filter(type == "Run") %>% 
+  mutate(month = as.factor(month(date, label = T, abbr = T)), 
+         year = as.factor(year(date)),
+         max_hr_over_distance = max_heartrate / distance) #%>% 
+  group_by(year, month) %>% 
+  mutate(suffer_score = mean(suffer_score, na.rm = T)) %>% 
+  select(month, year, suffer_score) %>% 
+  distinct()
+
+ggplot(ridge_ss, aes(x = suffer_score, y = month, fill = stat(x))) +
+  geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
+  scale_fill_gradient(low = "yellow", high = "red") + 
+  #scale_fill_viridis_c(option = "C") +
+  labs(x = "MILES", y = "") +
+  strava_gg()
+ggsave(filename =  here::here("figures", "monthly_ridgeline.jpeg"),
+       width = 8, height = 6, units = "in")
 ```
 
 
@@ -597,14 +616,14 @@ leaflet() %>%
 # https://www.r-bloggers.com/2018/05/get-your-tracks-from-the-strava-api-and-plot-them-on-leaflet-maps/
 options(stringsAsFactors = F)
 
-rm(list=ls())
+#rm(list=ls())
 
 library(httr)
 library(rjson)
 library(leaflet)
 library(dplyr)
 
-token <- "c64c112e60d823f191746e72b17cc58ae5df9732 "
+#token <- "c64c112e60d823f191746e72b17cc58ae5df9732 "
 
 
 # Functions —————————————————————
@@ -693,5 +712,47 @@ for (i in 1:nrow(activities)) {
 }
 
 map
+```
+
+```{r}
+library(ggplot2)
+library(gganimate)
+library(gapminder)
+
+g <- ggplot(gapminder, aes(gdpPercap, lifeExp, size = pop, frame = year)) +
+  geom_point() +
+  geom_smooth(aes(group = year), 
+              method = "lm", 
+              show.legend = FALSE) +
+  facet_wrap(~continent, scales = "free") +
+  scale_x_log10()  # convert to log scale
+
+gganimate(g, interval=0.2)
+
+# Create Month Week
+df$yearmonth <- as.yearmon(df$date)
+df$yearmonthf <- factor(df$yearmonth)
+df <- ddply(df,.(yearmonthf), transform, monthweek=1+week-min(week))  # compute week number of month
+df <- df[, c("year", "yearmonthf", "monthf", "week", "monthweek", "weekdayf", "VIX.Close")]
+head(df)
+#>   year yearmonthf monthf week monthweek weekdayf VIX.Close
+#> 1 2012   Jan 2012    Jan    1         1      Tue     22.97
+#> 2 2012   Jan 2012    Jan    1         1      Wed     22.22
+#> 3 2012   Jan 2012    Jan    1         1      Thu     21.48
+#> 4 2012   Jan 2012    Jan    1         1      Fri     20.63
+#> 5 2012   Jan 2012    Jan    2         2      Mon     21.07
+#> 6 2012   Jan 2012    Jan    2         2      Tue     20.69
+
+
+# Plot
+ggplot(df, aes(monthweek, weekdayf, fill = VIX.Close)) + 
+  geom_tile(colour = "white") + 
+  facet_grid(year~monthf) + 
+  scale_fill_gradient(low="red", high="green") +
+  labs(x="Week of Month",
+       y="",
+       title = "Time-Series Calendar Heatmap", 
+       subtitle="Yahoo Closing Price", 
+       fill="Close")
 ```
 

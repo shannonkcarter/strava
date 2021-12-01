@@ -26,6 +26,8 @@ library(tidyverse)
 library(highcharter)
 library(lubridate)
 library(janitor)
+library(lubridate)
+library(forcats)
 source("https://raw.githubusercontent.com/iascchen/VisHealth/master/R/calendarHeat.R")
 ```
 
@@ -393,8 +395,6 @@ ggplot(pace, aes(x = date, y = average_heartrate, size = distance)) +
 ## Temporal Aggregations
 
 ```{r}
-library(lubridate)
-
 weeks <- strava %>% 
   mutate(date = as.Date(start_date),
          week = floor_date(date, "week")) %>% 
@@ -599,17 +599,17 @@ ggsave(plot = box, filename =  here::here("figures", "monthly_boxplot.jpeg"),
 
 
 ```{r}
-library(googlePolylines)
-library(leaflet)
-gps <- strava %>% 
-  slice(1) #%>% 
-  decode(map.summary_polyline) 
-
-gps2 <- decode(gps)
-
-leaflet() %>% 
-  addProviderTiles("OpenStreetMap.DE") %>%
-  addPolylines( data = gps2)
+# library(googlePolylines)
+# library(leaflet)
+# gps <- strava %>% 
+#   slice(1) #%>% 
+#   decode(map.summary_polyline) 
+# 
+# gps2 <- decode(gps)
+# 
+# leaflet() %>% 
+#   addProviderTiles("OpenStreetMap.DE") %>%
+#   addPolylines( data = gps2)
   
 ```
 
@@ -716,45 +716,45 @@ map
 ```
 
 ```{r}
-library(ggplot2)
-library(gganimate)
-library(gapminder)
-
-g <- ggplot(gapminder, aes(gdpPercap, lifeExp, size = pop, frame = year)) +
-  geom_point() +
-  geom_smooth(aes(group = year), 
-              method = "lm", 
-              show.legend = FALSE) +
-  facet_wrap(~continent, scales = "free") +
-  scale_x_log10()  # convert to log scale
-
-gganimate(g, interval=0.2)
-
-# Create Month Week
-df$yearmonth <- as.yearmon(df$date)
-df$yearmonthf <- factor(df$yearmonth)
-df <- ddply(df,.(yearmonthf), transform, monthweek=1+week-min(week))  # compute week number of month
-df <- df[, c("year", "yearmonthf", "monthf", "week", "monthweek", "weekdayf", "VIX.Close")]
-head(df)
-#>   year yearmonthf monthf week monthweek weekdayf VIX.Close
-#> 1 2012   Jan 2012    Jan    1         1      Tue     22.97
-#> 2 2012   Jan 2012    Jan    1         1      Wed     22.22
-#> 3 2012   Jan 2012    Jan    1         1      Thu     21.48
-#> 4 2012   Jan 2012    Jan    1         1      Fri     20.63
-#> 5 2012   Jan 2012    Jan    2         2      Mon     21.07
-#> 6 2012   Jan 2012    Jan    2         2      Tue     20.69
-
-
-# Plot
-ggplot(df, aes(monthweek, weekdayf, fill = VIX.Close)) + 
-  geom_tile(colour = "white") + 
-  facet_grid(year~monthf) + 
-  scale_fill_gradient(low="red", high="green") +
-  labs(x="Week of Month",
-       y="",
-       title = "Time-Series Calendar Heatmap", 
-       subtitle="Yahoo Closing Price", 
-       fill="Close")
+# library(ggplot2)
+# library(gganimate)
+# library(gapminder)
+# 
+# g <- ggplot(gapminder, aes(gdpPercap, lifeExp, size = pop, frame = year)) +
+#   geom_point() +
+#   geom_smooth(aes(group = year), 
+#               method = "lm", 
+#               show.legend = FALSE) +
+#   facet_wrap(~continent, scales = "free") +
+#   scale_x_log10()  # convert to log scale
+# 
+# gganimate(g, interval=0.2)
+# 
+# # Create Month Week
+# df$yearmonth <- as.yearmon(df$date)
+# df$yearmonthf <- factor(df$yearmonth)
+# df <- ddply(df,.(yearmonthf), transform, monthweek=1+week-min(week))  # compute week number of month
+# df <- df[, c("year", "yearmonthf", "monthf", "week", "monthweek", "weekdayf", "VIX.Close")]
+# head(df)
+# #>   year yearmonthf monthf week monthweek weekdayf VIX.Close
+# #> 1 2012   Jan 2012    Jan    1         1      Tue     22.97
+# #> 2 2012   Jan 2012    Jan    1         1      Wed     22.22
+# #> 3 2012   Jan 2012    Jan    1         1      Thu     21.48
+# #> 4 2012   Jan 2012    Jan    1         1      Fri     20.63
+# #> 5 2012   Jan 2012    Jan    2         2      Mon     21.07
+# #> 6 2012   Jan 2012    Jan    2         2      Tue     20.69
+# 
+# 
+# # Plot
+# ggplot(df, aes(monthweek, weekdayf, fill = VIX.Close)) + 
+#   geom_tile(colour = "white") + 
+#   facet_grid(year~monthf) + 
+#   scale_fill_gradient(low="red", high="green") +
+#   labs(x="Week of Month",
+#        y="",
+#        title = "Time-Series Calendar Heatmap", 
+#        subtitle="Yahoo Closing Price", 
+#        fill="Close")
 ```
 
 # circular bar chart
@@ -782,13 +782,13 @@ base_data <- tibble(
   end = c(8, 22, 35, 48, 52),
   title = c(3, 15.5, 29, 42, 2)
 )
-library(forcats)
+
 pinwheel <- ggplot(weeks_run, aes(x = week_number, y = weekly_miles, fill = forcats::fct_rev(as.factor(year)))) + 
   geom_bar(position = "stack", stat = "identity", color = "white", size = 0.5) +
 
   coord_polar() +
   theme(legend.position = "none") +
-  ylim(-30,100) +
+  ylim(-30,110) +
   theme_minimal() +
   theme(
     legend.position = "none",
@@ -810,4 +810,17 @@ ggsave(pinwheel, file = here::here("figures", "pinwheel.jpg"), width = 10, heigh
 ```
 
 
+```{r}
+hchart(weeks_run, "column", hcaes(x = week_number, y = weekly_miles, group = forcats::fct_rev(as.factor(year)))) %>% 
+  hc_chart(polar = T) %>% 
+  hc_add_theme(strava_hc) %>% 
+  hc_colors(c("dodgerblue", "white", "yellow", "#358856")) %>% 
+  hc_plotOptions(column = list(stacking = "normal"),
+                           series = list(showInLegend = T)) %>% 
+  hc_yAxis(min = 10, max = 110, title = "") %>% 
+  hc_xAxis(title = "") %>% 
+  hc_tooltip(formatter = JS("function(){
+                                return ('Week ' + this.point.week_number + ', ' + this.point.year +
+                            '<br> Miles Run: ' + this.point.weekly_miles)}"))
+```
 

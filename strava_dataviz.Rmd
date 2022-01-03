@@ -33,7 +33,7 @@ source("https://raw.githubusercontent.com/iascchen/VisHealth/master/R/calendarHe
 
 ## Plot Themes
 ```{r }
-strava_hc <- hc_theme_merge(
+strava_hc = hc_theme_merge(
   hc_theme_smpl(),
   hc_theme(colors = c("#ffffff", "#C6C6C6"),
     marker = list(fillColor = c("#ffffff", "#f26852", "#2a366c", "#3ead92", "#5f6fc1", "#f9cd21"), 
@@ -80,7 +80,7 @@ strava_hc <- hc_theme_merge(
                         tickColor = "#F3F3F3", 
                         tickWidth = 2)))
 
-strava_gg <- function (base_size = 14,
+strava_gg = function (base_size = 14,
                      base_family = "Montserrat",
                      title_size = 23,
                      subtitle_size = 12,
@@ -144,15 +144,15 @@ strava_gg <- function (base_size = 14,
 ## Setup and Authentication
 ```{r, eval = F}
 # https://bldavies.com/blog/accessing-strava-api/
-credentials <- read_yaml("credentials.yml")
-app <- oauth_app("strava", credentials$client_id, credentials$secret)
-endpoint <- oauth_endpoint(
+credentials = read_yaml("credentials.yml")
+app = oauth_app("strava", credentials$client_id, credentials$secret)
+endpoint = oauth_endpoint(
   request = NULL,
   authorize = "https://www.strava.com/oauth/authorize",
   access = "https://www.strava.com/oauth/token"
 )
 
-token <- oauth2.0_token(endpoint, app, as_header = FALSE,
+token = oauth2.0_token(endpoint, app, as_header = FALSE,
                         scope = "activity:read_all")
 
 ```
@@ -160,43 +160,60 @@ token <- oauth2.0_token(endpoint, app, as_header = FALSE,
 
 ## Extract Data
 ```{r, eval = F}
-df_list <- list()
-i <- 1
-done <- FALSE
+df_list = list()
+i = 1
+done = FALSE
 while (!done) {
-  req <- GET(
+  req = GET(
     url = "https://www.strava.com/api/v3/athlete/activities",
     config = token,
     query = list(per_page = 200, page = i)
   )
-  df_list[[i]] <- fromJSON(content(req, as = "text"), flatten = TRUE)
+  df_list[[i]] = fromJSON(content(req, as = "text"), flatten = TRUE)
   if (length(content(req)) < 200) {
-    done <- TRUE
+    done = TRUE
   } else {
-    i <- i + 1
+    i = i + 1
   }
 }
 
-df <- rbind_pages(df_list)
+df = rbind_pages(df_list)
 write_rds(df, here::here("clean-data", "strava_2021_10_14.rds"))
 ```
 
 ## Clean Data
 ```{r}
-df <- read_rds(here::here("clean-data", "strava_2021_10_14.rds"))
+df = read_rds(here::here("clean-data", "strava_2021_10_14.rds"))
 
-strava <- df %>% 
+clean_df = df %>% 
   select(name, distance, moving_time, elapsed_time, total_elevation_gain,
          type, workout_type, start_date, 
          achievement_count, kudos_count, photo_count, 
          average_heartrate, max_heartrate, total_photo_count, suffer_score, 
          map.summary_polyline) %>% 
-  mutate(date = as.Date(start_date)) %>% 
+  mutate(date = as.Date(start_date)) 
+
+running = clean_df %>% 
+  filter(type == "Run") %>% 
+  # for blog and most analyses, only interested in complete years
+  filter(date > "2017-12-31" & date < "2022-01-01") %>% 
+  mutate(min_per_mile = moving_time / distance) %>% 
+  mutate(week = floor_date(date, "week"),
+         year = year(date),
+         month = floor_date(date, "month"),
+         year = as.factor(year(date)),
+         doy = yday(date),
+         dow = wday(date, label = T, abbr = T)) %>% 
   # convert distance from m to mi, time from seconds to minutes
   mutate(distance = round(distance/1609.34, 1),
          moving_time = moving_time / 60) %>% 
   mutate(half_marathon = case_when(workout_type == 1 & distance > 12 & distance < 15 ~ "y",
-                                   T ~ "n"))
+                                   T ~ "n")) %>% 
+  select(name,
+         date, doy, dow, week, month, year,  
+         moving_time, distance, min_per_mile, total_elevation_gain, 
+         achievement_count, kudos_count, total_photo_count, 
+         average_heartrate, max_heartrate, suffer_score, half_marathon)
 ```
 
 ## Plots
@@ -253,7 +270,7 @@ strava %>%
        y = "number of kudos",
        subtitle = "Each photo on an activity is worth on average 2.5 kudos (p < 0.0001)") 
 
-m1 <- lm(kudos_count ~ total_photo_count, data = strava)
+m1 = lm(kudos_count ~ total_photo_count + distance, data = strava)
 summary(m1)
 ```
 
@@ -342,37 +359,37 @@ strava %>%
 ```
 
 ```{r}
-tiles <- strava %>% 
+tiles = strava %>% 
   filter(type == "Run" | type == "Ride") %>% 
   filter(date > "2017-12-31")
 
-r2g <- c("#D61818", "#FFAE63", "#FFFFBD", "#B5E384")
+r2g = c("#D61818", "#FFAE63", "#FFFFBD", "#B5E384")
 
 calendarHeat(tiles$date, tiles$distance, ncolors = 99, color = "r2g", varname="Running & Cycling Miles")
 ```
 
 ```{r}
-tiles <- strava %>% 
+tiles = strava %>% 
   filter(type == "Run") %>% 
   filter(date > "2017-12-31")
 
-r2g <- c("#D61818", "#FFAE63", "#FFFFBD", "#B5E384")
+r2g = c("#D61818", "#FFAE63", "#FFFFBD", "#B5E384")
 
 calendarHeat(tiles$date, tiles$distance, ncolors = 99, color = "r2g", varname="Running Miles")
 ```
 
 ```{r}
-tiles <- strava %>% 
+tiles = strava %>% 
   filter(type == "Ride") %>% 
   filter(date > "2017-12-31")
 
-r2g <- c("#D61818", "#FFAE63", "#FFFFBD", "#B5E384")
+r2g = c("#D61818", "#FFAE63", "#FFFFBD", "#B5E384")
 
 calendarHeat(tiles$date, tiles$distance, ncolors = 99, color = "r2g", varname="Cycling Miles")
 ```
 
 ```{r}
-pace <- strava %>% 
+pace = strava %>% 
   filter(type == "Run") %>% 
   mutate(min_per_mile = moving_time / distance)
 
@@ -408,26 +425,26 @@ ggplot(pace, aes(x = date, y = average_heartrate, size = distance)) +
 ## Temporal Aggregations
 
 ```{r}
-weeks <- strava %>% 
+weeks = strava %>% 
   mutate(date = as.Date(start_date),
          week = floor_date(date, "week")) %>% 
   group_by(week, type) %>% 
   summarize(miles = sum(distance))
 
-running <- weeks %>% 
+running = weeks %>% 
   filter(type == "Run") %>% 
   ggplot(aes(x = week, y = miles)) + 
   geom_bar(stat = "identity") +
   strava_gg()
 running
 
-years <- strava %>% 
+years = strava %>% 
   mutate(date = as.Date(start_date),
          year = year(date)) %>% 
   group_by(year, type) %>% 
   summarize(miles = sum(distance))
 
-years_plot <- years %>% 
+years_plot = years %>% 
   filter(type == "Ride" & year > 2017) %>% 
   ggplot(aes(x = year, y = miles, fill = type)) + 
   geom_bar(stat = "identity", position = "dodge", fill = "white") +
@@ -435,7 +452,7 @@ years_plot <- years %>%
   labs(y = "cycling miles", x = NULL)
 years_plot
 
-years_run <- years %>% 
+years_run = years %>% 
   filter(type == "Run" & year > 2017) %>% 
   ggplot(aes(x = year, y = miles)) + 
   geom_bar(stat = "identity", fill = "white") +
@@ -443,20 +460,20 @@ years_run <- years %>%
   labs(y = "running miles", x = NULL)
 years_run
 
-running <- weeks %>% 
+running = weeks %>% 
   filter(type == "Run") %>% 
   ggplot(aes(x = week, y = miles)) + 
   geom_bar(stat = "identity") +
   strava_gg()
 running
 
-months <- strava %>% 
+months = strava %>% 
   mutate(date = as.Date(start_date),
          month = floor_date(date, "month")) %>%
   group_by(month, type) %>% 
   summarize(miles = sum(distance))
 
-months_run <- months %>% 
+months_run = months %>% 
   filter(type == "Run") %>% 
   ggplot(aes(x = month, y = miles)) + 
   geom_bar(stat = "identity", fill = "white") +
@@ -466,7 +483,7 @@ months_run
 ```
 
 ```{r}
-cumulative_miles <- strava %>% 
+cumulative_miles = strava %>% 
   filter(type == "Run") %>% 
   mutate(year = as.factor(year(date)),
          doy = yday(date)) %>% 
@@ -480,7 +497,7 @@ cumulative_miles <- strava %>%
   strava_gg()
 cumulative_miles
 
-cumulative_miles2 <- strava %>% 
+cumulative_miles2 = strava %>% 
   filter(type == "Run") %>% 
 
   mutate(year = as.factor(year(date)),
@@ -509,24 +526,24 @@ cumulative_miles2
 
 # https://www.markhneedham.com/blog/2017/04/29/leaflet-strava-polylines-osm/
 # extracting routes form polyline
-mini <- strava %>% 
+mini = strava %>% 
   head(10)
 ```
 
 ## Race Training Loads
 ```{r}
-half_training <- strava %>% 
+half_training = strava %>% 
   filter(half_marathon == "y") %>% 
   mutate(training_start = date - 90) %>% 
   mutate(race_name = c("Koala 2021", "Aramco 2020 (virtual)", "Aramco 2019", "Koala 2019", "Oilman 2018", "Austin 2017", "Aramco 2017")) %>% 
   #filter(race_name != "Austin 2017") %>% 
   select(race_name, finish_time = moving_time, training_start, race_day = date) 
 
-austin <- half_training %>%
+austin = half_training %>%
   filter(race_name == "Austin 2017") %>% 
   mutate(training_mileage = 244.4) %>% 
   select(training_for = race_name, training_mileage, finish_time, training_start, race_day)
-training_periods <- strava %>% 
+training_periods = strava %>% 
   mutate(training_for = case_when(
     date > "2017-10-16" & date <= "2018-01-14" ~ "Aramco 2017",
     #date > "2017-11-20" & date <= "2018-02-18" ~ "Austin 2017",
@@ -559,7 +576,7 @@ hchart(training_periods, "scatter", hcaes(x = training_mileage, y = finish_time)
 
 ```{r}
 library(ggridges)
-ridge <- strava %>% 
+ridge = strava %>% 
   filter(type == "Run") %>% 
   mutate(month = as.factor(month(date, label = T, abbr = T)), 
          year = as.factor(year(date))) %>% 
@@ -578,7 +595,7 @@ ggplot(ridge, aes(x = monthly_miles, y = month, fill = stat(x))) +
 ggsave(filename =  here::here("figures", "monthly_ridgeline.jpeg"),
        width = 8, height = 6, units = "in")
 
-ridge_ss <- strava %>% 
+ridge_ss = strava %>% 
   filter(type == "Run") %>% 
   mutate(month = as.factor(month(date, label = T, abbr = T)), 
          year = as.factor(year(date))) %>% 
@@ -611,7 +628,7 @@ ridge %>%
   geom_line() +
   theme_bw()
 
-box <- ridge %>% 
+box = ridge %>% 
   ggplot(aes(x = month, y = monthly_miles)) + 
   geom_boxplot(alpha = 0.7) + 
   strava_gg() +
@@ -630,11 +647,11 @@ ggsave(plot = box, filename =  here::here("figures", "monthly_boxplot.jpeg"),
 ```{r}
 # library(googlePolylines)
 # library(leaflet)
-# gps <- strava %>% 
+# gps = strava %>% 
 #   slice(1) #%>% 
 #   decode(map.summary_polyline) 
 # 
-# gps2 <- decode(gps)
+# gps2 = decode(gps)
 # 
 # leaflet() %>% 
 #   addProviderTiles("OpenStreetMap.DE") %>%
@@ -653,31 +670,31 @@ library(rjson)
 library(leaflet)
 library(dplyr)
 
-#token <- "c64c112e60d823f191746e72b17cc58ae5df9732 "
+#token = "c64c112e60d823f191746e72b17cc58ae5df9732 "
 
 
 # Functions —————————————————————
 
-get.coord.df.from.stream <- function (stream.obj) {
+get.coord.df.from.stream = function (stream.obj) {
   data.frame(lat = sapply(stream.obj[[1]]$data, USE.NAMES = F, FUN = function (x) x[[1]]),
              lon = sapply(stream.obj[[1]]$data, USE.NAMES = F, FUN = function (x) x[[2]]))
 }
 
-get.stream.from.activity <- function (act.id, token) {
-  stream <- GET("https://www.strava.com/",
+get.stream.from.activity = function (act.id, token) {
+  stream = GET("https://www.strava.com/",
                 path = paste0("api/v3/activities/", act.id, "/streams/latlng"),
                 query = list(access_token = token))
   content(stream)
 }
 
-get.activities2 <- function (token) {
-  activities <- GET("https://www.strava.com/", path = "api/v3/activities",
+get.activities2 = function (token) {
+  activities = GET("https://www.strava.com/", path = "api/v3/activities",
                     query = list(access_token = token, per_page = 200))
-  activities <- content(activities, "text")
-  activities <- fromJSON(activities)
-  res.df <- data.frame()
+  activities = content(activities, "text")
+  activities = fromJSON(activities)
+  res.df = data.frame()
   for (a in activities) {
-    values <- sapply(c("name", "distance", "moving_time", 
+    values = sapply(c("name", "distance", "moving_time", 
                        "elapsed_time", "total_elevation_gain",
                        "type", "id", "start_date_local",
                        "location_country", "average_speed", "max_speed", 
@@ -687,9 +704,9 @@ get.activities2 <- function (token) {
                          if (is.null(a[[x]])) {
                            NA } else { a[[x]] }
                        })
-    res.df <- rbind(res.df, values)
+    res.df = rbind(res.df, values)
   }
-  names(res.df) <- c("name", "distance", "moving_time", "elapsed_time", 
+  names(res.df) = c("name", "distance", "moving_time", "elapsed_time", 
                      "total_elevation_gain", "type", "id", "start_date_local",
                      "location_country", "average_speed", "max_speed", 
                      "has_heartrate", "elev_high",
@@ -697,38 +714,38 @@ get.activities2 <- function (token) {
   res.df
 }
 
-get.multiple.streams <- function (act.ids, token) {
-  res.list <- list()
+get.multiple.streams = function (act.ids, token) {
+  res.list = list()
   for (act.id.i in 1:length(act.ids)) {
     if (act.id.i %% 5 == 0) cat("Actitivy no.", act.id.i, "of", length(act.ids), "\n")
-    stream <- get.stream.from.activity(act.ids[act.id.i], token)
-    coord.df <- get.coord.df.from.stream(stream)
-    res.list[[length(res.list) + 1]] <- list(act.id = act.ids[act.id.i],
+    stream = get.stream.from.activity(act.ids[act.id.i], token)
+    coord.df = get.coord.df.from.stream(stream)
+    res.list[[length(res.list) + 1]] = list(act.id = act.ids[act.id.i],
                                              coords = coord.df)
   }
   res.list
 }
 
-activities <- get.activities2(token)
+activities = get.activities2(token)
 
-stream.list <- get.multiple.streams(activities$id, token)
+stream.list = get.multiple.streams(activities$id, token)
 
 # Leaflet —————————————————————–
 
-lons.range <- c(9.156572, 9.237580)
-lats.range <- c(48.74085, 48.82079)
+lons.range = c(9.156572, 9.237580)
+lats.range = c(48.74085, 48.82079)
 
-map <- leaflet() %>%
+map = leaflet() %>%
   addProviderTiles("OpenMapSurfer.Grayscale", # nice: CartoDB.Positron, OpenMapSurfer.Grayscale, CartoDB.DarkMatterNoLabels
                    options = providerTileOptions(noWrap = T)) %>%
-  fitBounds(lng1 = min(lons.range), lat1 = max(lats.range), lng2 <- max(lons.range), lat2 = min(lats.range))
+  fitBounds(lng1 = min(lons.range), lat1 = max(lats.range), lng2 = max(lons.range), lat2 = min(lats.range))
 
-add.run <- function (act.id, color, act.name, act.dist, strlist = stream.list) {
-  act.ind <- sapply(stream.list, USE.NAMES = F, FUN = function (x) {
+add.run = function (act.id, color, act.name, act.dist, strlist = stream.list) {
+  act.ind = sapply(stream.list, USE.NAMES = F, FUN = function (x) {
     x$act.id == act.id
   })
-  act.from.list <- strlist[act.ind][[1]]
-  map <<- addPolylines(map, lng = act.from.list$coords$lon,
+  act.from.list = strlist[act.ind][[1]]
+  map <= addPolylines(map, lng = act.from.list$coords$lon,
                lat = act.from.list$coords$lat,
                color = color, opacity = 1/3, weight = 2,
                popup = paste0(act.name, ", ", round(as.numeric(act.dist) / 1000, 2),"km"))
@@ -749,7 +766,7 @@ map
 # library(gganimate)
 # library(gapminder)
 # 
-# g <- ggplot(gapminder, aes(gdpPercap, lifeExp, size = pop, frame = year)) +
+# g = ggplot(gapminder, aes(gdpPercap, lifeExp, size = pop, frame = year)) +
 #   geom_point() +
 #   geom_smooth(aes(group = year), 
 #               method = "lm", 
@@ -760,10 +777,10 @@ map
 # gganimate(g, interval=0.2)
 # 
 # # Create Month Week
-# df$yearmonth <- as.yearmon(df$date)
-# df$yearmonthf <- factor(df$yearmonth)
-# df <- ddply(df,.(yearmonthf), transform, monthweek=1+week-min(week))  # compute week number of month
-# df <- df[, c("year", "yearmonthf", "monthf", "week", "monthweek", "weekdayf", "VIX.Close")]
+# df$yearmonth = as.yearmon(df$date)
+# df$yearmonthf = factor(df$yearmonth)
+# df = ddply(df,.(yearmonthf), transform, monthweek=1+week-min(week))  # compute week number of month
+# df = df[, c("year", "yearmonthf", "monthf", "week", "monthweek", "weekdayf", "VIX.Close")]
 # head(df)
 # #>   year yearmonthf monthf week monthweek weekdayf VIX.Close
 # #> 1 2012   Jan 2012    Jan    1         1      Tue     22.97
@@ -790,7 +807,7 @@ map
 ```{r}
 # https://www.r-graph-gallery.com/299-circular-stacked-barplot.html
  
-weeks_run <- weeks %>% 
+weeks_run = weeks %>% 
   filter(type == "Run") %>% 
   mutate(year = year(week),
          week_number = week(week),
@@ -805,19 +822,19 @@ weeks_run <- weeks %>%
             season = season[1])
 
 # prepare a data frame for base lines
-base_data <- tibble(
+base_data = tibble(
   season = c("winter", "spring", "summer", "fall", ""),
   start = c(1, 9, 23, 36, 49),
   end = c(8, 22, 35, 48, 52),
   title = c(3, 15.5, 29, 42, 2)
 )
 
-pinwheel <- ggplot(weeks_run, aes(x = week_number, y = weekly_miles, fill = forcats::fct_rev(as.factor(year)))) + 
+pinwheel = ggplot(weeks_run, aes(x = week_number, y = weekly_miles, fill = forcats::fct_rev(as.factor(year)))) + 
   geom_bar(position = "stack", stat = "identity", color = "white", size = 0.5) +
 
   coord_polar() +
   theme(legend.position = "none") +
-  ylim(-30,110) +
+  ylim(-30,125) +
   theme_minimal() +
   theme(
     legend.position = "none",
@@ -836,7 +853,7 @@ pinwheel <- ggplot(weeks_run, aes(x = week_number, y = weekly_miles, fill = forc
 pinwheel
 ggsave(pinwheel, file = here::here("figures", "pinwheel.jpg"), width = 10, height = 10)
 
-months_run <- months %>% 
+months_run = months %>% 
   filter(type == "Run") %>% 
   mutate(year = year(month),
          month_name = month(month, label = T, abbr = T)) %>% 
@@ -844,11 +861,11 @@ months_run <- months %>%
   group_by(month_name, year) %>% 
   summarize(monthly_miles = sum(miles, na.rm = T))
 
-pinwheel_month <- ggplot(months_run, aes(x = month_name, y = monthly_miles, fill = forcats::fct_rev(as.factor(year)))) + 
+pinwheel_month = ggplot(months_run, aes(x = month_name, y = monthly_miles, fill = forcats::fct_rev(as.factor(year)))) + 
   geom_bar(position = "stack", stat = "identity", color = "white", size = 0.5) +
   coord_polar() +
   theme(legend.position = "none") +
-  ylim(-30,400) +
+  ylim(-30,500) +
   theme_minimal() +
   theme(
     legend.position = "none",
@@ -861,7 +878,7 @@ pinwheel_month <- ggplot(months_run, aes(x = month_name, y = monthly_miles, fill
 pinwheel_month
 ```
 ```{r}
-bars_month <- ggplot(months_run, aes(x = month_name, y = monthly_miles, fill = forcats::fct_rev(as.factor(year)))) + 
+bars_month = ggplot(months_run, aes(x = month_name, y = monthly_miles, fill = forcats::fct_rev(as.factor(year)))) + 
   geom_bar(position = "stack", stat = "identity", color = "white", size = 0.5) +
   strava_gg() +
   scale_fill_manual(values = c("dodgerblue", "aquamarine4", "yellow", "tomato")) +

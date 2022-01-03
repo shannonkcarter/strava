@@ -185,7 +185,7 @@ write_rds(df, here::here("clean-data", "strava_2021_10_14.rds"))
 ```{r}
 df = read_rds(here::here("clean-data", "strava_2021_10_14.rds"))
 
-clean_df = df %>% 
+strava = df %>% 
   select(name, distance, moving_time, elapsed_time, total_elevation_gain,
          type, workout_type, start_date, 
          achievement_count, kudos_count, photo_count, 
@@ -193,7 +193,7 @@ clean_df = df %>%
          map.summary_polyline) %>% 
   mutate(date = as.Date(start_date)) 
 
-running = clean_df %>% 
+running = strava %>% 
   filter(type == "Run") %>% 
   # for blog and most analyses, only interested in complete years
   filter(date > "2017-12-31" & date < "2022-01-01") %>% 
@@ -272,6 +272,27 @@ strava %>%
 
 m1 = lm(kudos_count ~ total_photo_count + distance, data = strava)
 summary(m1)
+```
+# Kudos model
+```{r}
+library(tidymodels)
+library(readr)
+library(broom.mixed)
+library(dotwhisker)
+
+
+  
+lm_fit <- linear_reg() %>% 
+  set_engine("lm") %>% 
+  fit(kudos_count ~ distance, data = running)
+lm_fit
+tidy(lm_fit)
+
+ggplot(running, aes(x = distance, y = kudos_count, color = dow)) + geom_point() +
+  geom_smooth(method = "lm", se = F)
+
+m2 = lm(kudos_count ~ dow + distance + min_per_mile + achievement_count + total_photo_count + suffer_score, data = running)
+summary(m2)
 ```
 
 ```{r}

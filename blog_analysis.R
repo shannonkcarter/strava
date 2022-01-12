@@ -4,6 +4,7 @@ library(lubridate)
 library(janitor)
 library(here)
 library(tidymodels)
+library(htmlwidgets)
 
 options(scipen = 100)
 
@@ -158,51 +159,109 @@ race_gisele <- tibble(distance = 26.2,
 gisele_race_pred <- predict(lm_test, new_data = race_gisele)
 
 ### plots 
-ggplot(shannon_pred, aes(x = distance, y = kudos_count)) + 
-  geom_point(color = "white", alpha = 0.5) + 
-  geom_smooth(method = "lm", color = "#d3d3d3", fill = "#d3d3d3") +
-  strava_gg() +
-  labs(x = "distance (mi)", y = "number of kudos",
-       subtitle = "Each mile is worth 0.96 kudos")
+upload_to_ja_site <- function(.chart, .fn) {
+  fn <- .fn
+  htmlwidgets::saveWidget(.chart, here::here("figures",fn), selfcontained = TRUE)
+  user <- "maps@januaryadvisors.com"
+  pwd <- "RFubsvfhb4NjYpGs"
+  RCurl::ftpUpload(what = here::here("figures",fn), 
+                   to = paste("ftp://januaryadvisors.com:21/",fn,sep=""), userpwd = paste(user, pwd, sep = ":"))
+}
 
-ggplot(shannon_pred, aes(x = as.factor(year), y = kudos_count)) + 
-  geom_boxplot(color = "white", fill = "#d3d3d3", alpha = 0.5) + 
-  strava_gg() +
-  labs(x = "year", y = "number of kudos",
-       subtitle = "Each year I get more followers, which brings more kudos")
+distancelm <- tibble(x = c(0, 26.2),
+                     y = c(5, 30))
 
-shannon_pred %>% 
-  mutate(race = case_when(race == T ~ "race",
-                          race == F ~ "training run"),
-         race = factor(race, levels = c("training run", "race"), ordered = T)) %>% 
-  ggplot(aes(x = race, y = kudos_count)) + 
-  geom_boxplot(color = "white", fill = "#d3d3d3", alpha = 0.5) + 
-  strava_gg() +
-  labs(x = "", y = "number of kudos",
-       subtitle = "Races get on average 12 more kudos than normal runs")
+blog1 <- shannon_pred %>% 
+  hchart("scatter", hcaes(x = distance, y = kudos_count)) %>% 
+  hc_plotOptions(scatter = list(jitter = list(x = 0.2, y = 0.2),
+                                opacity = 0.8)) %>% 
+  hc_add_series(distancelm, "line", hcaes(x = x, y = y)) %>% 
+  hc_tooltip(formatter = JS("function(){
+                                return (this.point.name + 
+                            ' <br> actual kudos: ' + this.point.kudos_count +
+                            ' <br> predicted kudos: ' + this.point.kudos_predict + 
+                            ' <br>' + this.point.distance + 'mi, ' + this.point.date +
+                            ' <br>' + this.point.total_photo_count + ' photos, ' +
+                            this.point.achievement_count + ' achievements, ' +
+                            this.point.min_per_mile + ' min/mi' 
+                            )}")) %>%
+  hc_xAxis(title = list(text = "distance (mi)")) %>% 
+  hc_yAxis(title = list(text = "kudo count")) %>%
+  hc_add_theme(strava_hc) %>% 
+  hc_title(text = "Each mile earns on average 0.96 kudos") %>% 
+  hc_subtitle(text = "Each point represents one run - hover over a point for data about that run")
+upload_to_ja_site(blog1, "ja-strava-chart1.html")
 
-ggplot(shannon_pred, aes(x = suffer_score, y = kudos_count)) + 
-  geom_point(color = "white", alpha = 0.5) + 
-  geom_smooth(method = "lm", color = "#d3d3d3", fill = "#d3d3d3") +
-  strava_gg() +
-  labs(x = "suffer score", y = "number of kudos",
-       subtitle = "No need to suffer - negligible effect on kudos, except in extreme cases")
+photoslm <- tibble(x = c(0, 9),
+                   y = c(8, 20))
+blog2 <- shannon_pred %>% 
+  hchart("scatter", hcaes(x = total_photo_count, y = kudos_count)) %>% 
+  hc_plotOptions(scatter = list(jitter = list(x = 0.45, y = 0.2),
+                                opacity = 0.8)) %>% 
+  hc_add_series(photoslm, "line", hcaes(x = x, y = y)) %>% 
+  hc_tooltip(formatter = JS("function(){
+                                return (this.point.name + 
+                            ' <br> actual kudos: ' + this.point.kudos_count +
+                            ' <br> predicted kudos: ' + this.point.kudos_predict + 
+                            ' <br>' + this.point.distance + 'mi, ' + this.point.date +
+                            ' <br>' + this.point.total_photo_count + ' photos, ' +
+                            this.point.achievement_count + ' achievements, ' +
+                            this.point.min_per_mile + ' min/mi' 
+                            )}")) %>%
+  hc_xAxis(title = list(text = "photo count")) %>% 
+  hc_yAxis(title = list(text = "kudo count")) %>%
+  hc_add_theme(strava_hc) %>% 
+  hc_title(text = "A picture is worth 1,000 words and 1.4 kudos") %>% 
+  hc_subtitle(text = "Each point represents one run - hover over a point for data about that run")
+blog2
+upload_to_ja_site(blog2, "ja-strava-chart2.html")
 
-ggplot(shannon_pred, aes(x = total_photo_count, y = kudos_count)) + 
-  geom_jitter(color = "white", alpha = 0.5) + 
-  geom_smooth(method = "lm", color = "#d3d3d3", fill = "#d3d3d3") +
-  strava_gg() +
-  labs(x = "number of photos uploaded", y = "number of kudos",
-       subtitle = "A picture is worth 1000 words and 1.4 kudos")
+blog3 <- shannon_pred %>% 
+  hchart("scatter", hcaes(x = kudos_count, y = kudos_predict)) %>% 
+  hc_add_series(one_to_one, "line", hcaes(x = x, y = y)) %>% 
+  hc_plotOptions(scatter = list(jitter = list(x = 0.2, y = 0.2),
+                                opacity = 0.8)) %>% 
+  hc_tooltip(formatter = JS("function(){
+                                return (this.point.name + 
+                            ' <br> actual kudos: ' + this.point.kudos_count +
+                            ' <br> predicted kudos: ' + this.point.kudos_predict + 
+                            ' <br>' + this.point.distance + 'mi, ' + this.point.date +
+                            ' <br>' + this.point.total_photo_count + ' photos, ' +
+                            this.point.achievement_count + ' achievements, ' +
+                            this.point.min_per_mile + ' min/mi' 
+                            )}")) %>%
+  hc_xAxis(title = list(text = "actual kudo count"), min = 0, max = 40) %>% 
+  hc_yAxis(title = list(text = "predicted kudo count"), min = 0, max = 40) %>%
+  hc_add_theme(strava_hc) %>% 
+  hc_title(text = "The model explains 53% of kudo variation for my runs") %>% 
+  hc_subtitle(text = "For a perfectly predictive model, all points would fall on the 1:1 line") %>% 
+  hc_annotations(
+    list(
+      labels = list(
+        list(point = list(x = 13, y = 20, xAxis = 0, yAxis = 0), text = "Points above the line represent runs<br>where I got fewer kudos than expected 😔"),
+        list(point = list(x = 16, y = 7, xAxis = 0, yAxis = 0), text = "Points below the line represent runs<br>where I got more kudos than expected 😄")
+        )))
+blog3
+upload_to_ja_site(blog3, "ja-strava-chart3.html")
 
-shannon_pred %>% 
-  mutate(emojis = case_when(emojis == T ~ "emojis",
-                          emojis == F ~ "no emojis"),
-         emojis = factor(emojis, levels = c("no emojis", "emojis"), ordered = T)) %>% 
-  ggplot(aes(x = emojis, y = kudos_count)) + 
-  geom_boxplot(color = "white", fill = "#d3d3d3", alpha = 0.5) + 
-  strava_gg() +
-  labs(x = "", y = "number of kudos",
-       subtitle = "Emojis are far and away the easiest way to earn kudos")
-
-
+blog4 <- gisele_pred %>% 
+  hchart("scatter", hcaes(x = kudos_count, y = kudos_predict)) %>% 
+  hc_add_series(one_to_one, "line", hcaes(x = x, y = y)) %>% 
+  hc_plotOptions(scatter = list(jitter = list(x = 0.2, y = 0.2),
+                                opacity = 0.8)) %>% 
+  hc_tooltip(formatter = JS("function(){
+                                return (this.point.name + 
+                            ' <br> actual kudos: ' + this.point.kudos_count +
+                            ' <br> predicted kudos: ' + this.point.kudos_predict + 
+                            ' <br>' + this.point.distance + 'mi, ' + this.point.date +
+                            ' <br>' + this.point.total_photo_count + ' photos, ' +
+                            this.point.achievement_count + ' achievements, ' +
+                            this.point.min_per_mile + ' min/mi' 
+                            )}")) %>%
+  hc_xAxis(title = list(text = "actual kudo count"), min = 0, max = 45) %>% 
+  hc_yAxis(title = list(text = "predicted kudo count"), min = 0, max = 45) %>%
+  hc_add_theme(strava_hc) %>% 
+  hc_title(text = "Gisele tends to get more kudos than predicted") %>% 
+  hc_subtitle(text = "The model is less predictive of Gisele's kudos, but still accurately predicts within a margin of error 79% of the time")
+blog4
+upload_to_ja_site(blog4, "ja-strava-chart4.html")

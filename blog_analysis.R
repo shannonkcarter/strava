@@ -265,3 +265,28 @@ blog4 <- gisele_pred %>%
   hc_subtitle(text = "The model is less predictive of Gisele's kudos, but still accurately predicts within a margin of error 79% of the time")
 blog4
 upload_to_ja_site(blog4, "ja-strava-chart4.html")
+
+# df <- tibble(geoname = c("texas", "louisiana", "detroit"),
+#              estimate = c(8, 10, 12),
+#              color_group = c("y", "n", "n")) %>% 
+#   mutate(estimate = case_when(color_group == "n" ~ estimate))
+# df_highlight <- tibble(geoname = c("texas", "louisiana", "detroit"),
+#                        estimate = c(8, 10, 12),
+#                        color_group = c("y", "n", "n")) %>% 
+#   filter(color_group == "y")
+# 
+# hchart(df, "bar", color = "blue", hcaes(geoname, estimate)) %>%
+#   hc_plotOptions(column = list(
+#     stacking = "normal")
+#   )  %>% 
+#   hc_xAxis(title = list(text = "")) %>%
+#   hc_title(text = "Top 10 & selected") %>%
+#   hc_tooltip(
+#     #pointFormat = "<span  style='color: {series.color}'> {series.name} <b>{point.pretty_num}</b><br/></span>",
+#     shadow = FALSE,
+#     backgroundColor = "transparent",
+#     style = list(textOutline = "3px white"),
+#     borderColor = "transparent",
+#     borderWidth = 0
+#   ) %>%
+#   hc_add_series(df_highlight,color = "orange", "bar", hcaes(geoname, estimate)) 

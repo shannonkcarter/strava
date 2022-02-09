@@ -1,8 +1,11 @@
 library(tidyverse)
 library(httr)
+library(yaml)
 
 # https://billpetti.github.io/2017-12-23-use-yelp-api-r-rstats/
-
+credentials = read_yaml("credentials.yml")
+credentials$client_id_yelp
+credentials$secret_yelp
 res <- POST("https://api.yelp.com/oauth2/token",
             body = list(grant_type = "client_credentials",
                         client_id = credentials$client_id_yelp,
@@ -57,8 +60,8 @@ yelp_business_search <- function(term = NULL, location = NULL,
   payload
 }
 
-results <- yelp_business_search(term = "Dunkin' Donuts", 
-                                location = "Philadelphia, PA",
-                                radius = 1000, # in meters; 40000m = 25mi is max 
+results <- yelp_business_search(term = "ice cream", 
+                                location = "Houston, TX",
+                                radius = 4000, # in meters; 40000m = 25mi is max 
                                 client_id = client_id, 
                                 client_secret = client_secret)

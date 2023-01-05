@@ -187,11 +187,13 @@ df = read_rds(here::here("clean-data", "shannon_strava_raw.rds"))
 
 strava = df %>% 
   select(name, distance, moving_time, elapsed_time, total_elevation_gain,
-         type, workout_type, start_date, 
+         type, workout_type, start_date_local, 
          achievement_count, kudos_count, photo_count, athlete_count,
          average_heartrate, max_heartrate, total_photo_count, suffer_score, 
          map.summary_polyline) %>% 
-  mutate(date = as.Date(start_date)) 
+  mutate(date = as.Date(start_date_local)) %>% 
+  mutate(distance = round(distance/1609, 1),
+         moving_time = round(moving_time / 60, 1))
 
 
 ```
@@ -404,7 +406,7 @@ calendarHeat(tiles$date, tiles$distance, ncolors = 99, color = "r2g", varname="R
 ```{r}
 tiles = strava %>% 
   filter(type == "Run") %>% 
-  filter(date > "2017-12-31")
+  filter(grepl("2022", date))
 
 # red, orange, yellow, green
 r2g = c("#D61818", "#FFAE63", "#FFFFBD", "#B5E384")
@@ -460,7 +462,7 @@ ggplot(pace, aes(x = date, y = average_heartrate, size = distance)) +
 
 ```{r}
 weeks = strava %>% 
-  mutate(date = as.Date(start_date),
+  mutate(date = as.Date(start_date_local),
          week = floor_date(date, "week")) %>% 
   group_by(week, type) %>% 
   summarize(miles = sum(distance))
@@ -473,7 +475,7 @@ running = weeks %>%
 running
 
 years = strava %>% 
-  mutate(date = as.Date(start_date),
+  mutate(date = as.Date(start_date_local),
          year = year(date)) %>% 
   group_by(year, type) %>% 
   summarize(miles = sum(distance))
@@ -497,12 +499,12 @@ years_run
 running = weeks %>% 
   filter(type == "Run") %>% 
   ggplot(aes(x = week, y = miles)) + 
-  geom_bar(stat = "identity") +
+  geom_bar(stat = "identity", fill = "white") +
   strava_gg()
 running
 
 months = strava %>% 
-  mutate(date = as.Date(start_date),
+  mutate(date = as.Date(start_date_local),
          month = floor_date(date, "month")) %>%
   group_by(month, type) %>% 
   summarize(miles = sum(distance))
@@ -550,7 +552,7 @@ cumulative_miles2 = strava %>%
   hc_yAxis(title = list(text = "year-to-date miles")) %>%
   hc_add_theme(strava_hc) %>% 
   hc_title(text = "")  %>% 
-  hc_colors(c("yellow", "#358856", "dodgerblue", "purple"))
+  hc_colors(c("yellow", "#358856", "dodgerblue", "purple", "navy"))
 cumulative_miles2
 ```
 
@@ -663,6 +665,7 @@ ridge %>%
   theme_bw()
 
 box = ridge %>% 
+  filter(year != "2023") %>% 
   ggplot(aes(x = month, y = monthly_miles)) + 
   geom_boxplot(alpha = 0.7) + 
   strava_gg() +
@@ -850,7 +853,7 @@ weeks_run = weeks %>%
                             month %in% c(3, 4, 5) ~ "spring",
                             month %in% c(6, 7, 8) ~ "summer",
                             month %in% c(9, 10, 11) ~ "fall")) %>% 
-    filter(year > 2017) %>% 
+    filter(year > 2017 & year < 2023) %>% 
   group_by(week_number, year) %>% 
   summarize(weekly_miles = sum(miles, na.rm = T),
             season = season[1])
@@ -891,7 +894,7 @@ months_run = months %>%
   filter(type == "Run") %>% 
   mutate(year = year(month),
          month_name = month(month, label = T, abbr = T)) %>% 
-    filter(year > 2017) %>% 
+    filter(year > 2017 & year < 2023) %>% 
   group_by(month_name, year) %>% 
   summarize(monthly_miles = sum(miles, na.rm = T))
 
@@ -899,7 +902,7 @@ pinwheel_month = ggplot(months_run, aes(x = month_name, y = monthly_miles, fill 
   geom_bar(position = "stack", stat = "identity", color = "white", size = 0.5) +
   coord_polar() +
   theme(legend.position = "none") +
-  ylim(-30,500) +
+  ylim(-30,700) +
   theme_minimal() +
   theme(
     legend.position = "none",
@@ -908,7 +911,7 @@ pinwheel_month = ggplot(months_run, aes(x = month_name, y = monthly_miles, fill 
     panel.grid = element_blank(),
     plot.margin = unit(rep(-1,4), "cm") 
   ) +
-  scale_fill_manual(values = c("dodgerblue", "aquamarine4", "yellow", "tomato"))
+  scale_fill_manual(values = c("dodgerblue", "aquamarine4", "yellow", "tomato", "blue"))
 pinwheel_month
 ```
 ```{r}

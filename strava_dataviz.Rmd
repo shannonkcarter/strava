@@ -395,12 +395,12 @@ strava %>%
 
 ```{r}
 tiles = strava %>% 
-  filter(type == "Run" | type == "Ride") %>% 
+  filter(type == "Run") %>% 
   filter(date > "2017-12-31")
 
 r2g = c("#D61818", "#FFAE63", "#FFFFBD", "#B5E384")
 
-calendarHeat(tiles$date, tiles$distance, ncolors = 99, color = "r2g", varname="Running & Cycling Miles")
+calendarHeat(tiles$date, tiles$distance, ncolors = 99, color = "r2g", varname="Running Miles")
 ```
 
 ```{r}
@@ -680,21 +680,6 @@ ggsave(plot = box, filename =  here::here("figures", "monthly_boxplot.jpeg"),
 
 ```
 
-
-```{r}
-# library(googlePolylines)
-# library(leaflet)
-# gps = strava %>% 
-#   slice(1) #%>% 
-#   decode(map.summary_polyline) 
-# 
-# gps2 = decode(gps)
-# 
-# leaflet() %>% 
-#   addProviderTiles("OpenStreetMap.DE") %>%
-#   addPolylines( data = gps2)
-  
-```
 
 ```{r}
 # https://www.r-bloggers.com/2018/05/get-your-tracks-from-the-strava-api-and-plot-them-on-leaflet-maps/

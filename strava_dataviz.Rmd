@@ -406,7 +406,7 @@ calendarHeat(tiles$date, tiles$distance, ncolors = 99, color = "r2g", varname="R
 ```{r}
 tiles = strava %>% 
   filter(type == "Run") %>% 
-  filter(grepl("2022", date))
+  filter(grepl("2024", date))
 
 # red, orange, yellow, green
 r2g = c("#D61818", "#FFAE63", "#FFFFBD", "#B5E384")
